@@ -1,42 +1,9 @@
 import { LayoutGrid } from "lucide-react";
+import type { RecentActivity } from "../../types/dashboard.types";
 
-const activities = [
-  {
-    id: 1,
-    type: 'delivered',
-    load: '#8291',
-    description: 'Delivered',
-    driver: 'Mike Ross',
-    location: 'Chicago, IL',
-    time: '2m ago'
-  },
-  {
-    id: 2,
-    type: 'delay',
-    title: 'Driver Delayed',
-    load: '#8300',
-    description: 'Traffic on I-95',
-    time: '12m ago'
-  },
-  {
-    id: 3,
-    type: 'payment',
-    title: 'Payment Processed',
-    invoice: 'INV-2023',
-    time: '15m ago'
-  },
-  {
-    id: 4,
-    type: 'delivered',
-    load: '#8291',
-    description: 'Delivered',
-    driver: 'Mike Ross',
-    location: 'Chicago, IL',
-    time: '9m ago'
-  }
-];
 
-export default function RecentActivity() {
+
+export default function RecentActivity({ activities }: { activities: RecentActivity[] }) {
   return (
     <div className="bg-white rounded-lg p-6 shadow-sm">
       <h3 className="font-semibold text-gray-900 mb-3">Recent Activity</h3>

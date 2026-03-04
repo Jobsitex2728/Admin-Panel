@@ -9,7 +9,7 @@ export default function MainLayout() {
       <Sidebar />
       <main className="flex-1 h-screen overflow-y-auto">
        <Header/>
-        <div >
+        <div className=' ml-64'>
           <Outlet/>
         </div>
       </main>

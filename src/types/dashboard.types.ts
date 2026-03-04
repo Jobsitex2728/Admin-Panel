@@ -23,6 +23,14 @@ export interface UserGrowthData {
   growth: number;
   trendType: string;
   monthlyData: MonthlyUserData[];
+  timeFilters: string[];
+  userFilters: string[];
+  lastMonthSummary: {
+    label: string;
+    value: number;
+    trend: number;
+    trendType: string;
+  };
 }
 
 export type ActivityType = 'delivered' | 'delay' | 'traffic' | 'payment';
@@ -35,6 +43,7 @@ export interface RecentActivity {
   description: string;
   time: string;
   driver?: string;
+  title?: string;
   location?: string;
   invoice?: string;
   icon: ActivityIcon;
@@ -52,14 +61,6 @@ export interface DashboardData {
   userGrowth: UserGrowthData;
   recentActivity: RecentActivity[];
   quickActions: QuickAction[];
-  timeFilters: string[];
-  userFilters: string[];
-  lastMonthSummary: {
-    label: string;
-    value: number;
-    trend: number;
-    trendType: string;
-  };
 }
 
 export type TimeFilter = 'Daily' | 'Weekly' | 'Monthly' | 'Yearly';
@@ -68,5 +69,4 @@ export type UserFilter = 'New' | 'Old';
 export interface DashboardState {
   timeFilter: TimeFilter;
   userFilter: UserFilter;
-  sidebarCollapsed: boolean;
 }

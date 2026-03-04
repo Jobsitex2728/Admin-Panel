@@ -1,5 +1,4 @@
 import { LayoutDashboard, Truck, Users, CreditCard, Star, Settings, LogOut } from 'lucide-react';
-import { useAppSelector } from '../../store/store';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 const menuItems = [
@@ -13,21 +12,17 @@ const menuItems = [
 ];
 
 export default function Sidebar() {
-    const collapsed = useAppSelector((state) => state.dashboard.sidebarCollapsed);
     const navigate = useNavigate();
     const location = useLocation();
 
     return (
-        <aside className={`bg-white border-r border-gray-200 h-screen fixed left-0 top-0 transition-all duration-300 ${collapsed ? 'w-20' : 'w-64'
+        <aside className={`bg-white border-r border-gray-200 h-screen fixed left-0 top-0 transition-all duration-300 w-64'
             }`}>
-            <div className="p-6">
-                <h1 className={`font-bold text-xl text-primary-600 ${collapsed ? 'hidden' : 'block'}`}>
-                    JobSiteX
-                </h1>
-                {collapsed && <h1 className="font-bold text-xl text-primary-600 text-center">JX</h1>}
+            <div>
+                <img src={'/logo.png'} alt="JOBSITE" className=" w-30" />
             </div>
 
-            <nav className="mt-6">
+            <nav>
                 {menuItems.map((item, index) => {
                     const isActive = location.pathname === item.path ||
                         (item.path === '/' && location.pathname === '/dashboard');
@@ -40,7 +35,7 @@ export default function Sidebar() {
                                 }`}
                         >
                             <item.icon size={20} />
-                            <span className={`ml-3 ${collapsed ? 'hidden' : 'block'}`}>{item.label}</span>
+                            <span className={`ml-3`}>{item.label}</span>
                         </button>
                     )
                 })}
@@ -49,7 +44,7 @@ export default function Sidebar() {
             <div className="absolute bottom-0 w-full p-6 border-t border-gray-200">
                 <button className="flex items-center text-gray-700 hover:text-red-600 transition-colors">
                     <LogOut size={20} />
-                    <span className={`ml-3 ${collapsed ? 'hidden' : 'block'}`}>Logout</span>
+                    <span className={`ml-3 `}>Logout</span>
                 </button>
             </div>
         </aside>

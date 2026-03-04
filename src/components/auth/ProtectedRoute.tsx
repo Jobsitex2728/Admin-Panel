@@ -1,7 +1,6 @@
 import { Navigate, Outlet } from 'react-router-dom';
 
-// This is a simple mock - replace with real auth later
-const isAuthenticated = true; // Mock authentication
+const isAuthenticated = true;
 
 export default function ProtectedRoute() {
   if (!isAuthenticated) {

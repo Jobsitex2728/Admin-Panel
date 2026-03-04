@@ -8,24 +8,11 @@ import {
     Tooltip,
     ResponsiveContainer
 } from 'recharts';
+import type { UserGrowthData } from '../../types/dashboard.types';
 
-interface ChartData {
-    month: string;
-    new: number;
-    old: number;
-}
 
-interface UserGrowthSectionProps {
-    data: {
-        totalUsers: number;
-        newJoiners: number;
-        growth: number;
-        chartData: ChartData[];
-        lastMonthSummary: number;
-    };
-}
 
-export default function UserGrowthSection({ data }: UserGrowthSectionProps) {
+export default function UserGrowthSection({ data }: { data: UserGrowthData }) {
     const [timeFilter, setTimeFilter] = useState('Monthly');
     const [showNew, setShowNew] = useState(true);
     const [showOld, setShowOld] = useState(true);
@@ -51,7 +38,7 @@ export default function UserGrowthSection({ data }: UserGrowthSectionProps) {
                     <div className="mb-6">
                         <p className="text-sm text-gray-500">Last Month Summary</p>
                         <p className="text-lg font-semibold text-gray-900">
-                            {data.lastMonthSummary.toLocaleString()}
+                            {data.lastMonthSummary.value.toLocaleString()}
                         </p>
                     </div>
                 </div>
@@ -63,7 +50,7 @@ export default function UserGrowthSection({ data }: UserGrowthSectionProps) {
                 <div className="flex items-center justify-between mb-6">
                     {/* Time Filters */}
                     <div className="flex gap-4 ml-16">
-                        {['Daily', 'Weekly', 'Monthly', 'Yearly'].map((filter) => (
+                        {data.timeFilters.map((filter) => (
                             <button
                                 key={filter}
                                 onClick={() => setTimeFilter(filter)}
@@ -101,7 +88,7 @@ export default function UserGrowthSection({ data }: UserGrowthSectionProps) {
                 <div className="h-54">
                     <ResponsiveContainer width="100%" height="100%">
                         <AreaChart
-                            data={data.chartData}
+                            data={data.monthlyData}
                             margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
                         >
                             {/* Gradients */}

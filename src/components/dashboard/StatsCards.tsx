@@ -1,16 +1,9 @@
 import { type LucideIcon } from "lucide-react";
+import type { StatItem } from "../../types/dashboard.types";
 
-interface StatsCardProps {
-    label: string;
-    value?: string | number;
-    subValue?: string;
-    trend?: string;
-    trendType?: 'YoY' | 'MoM';
-    Icon: LucideIcon;
-    children?: React.ReactNode;
-}
 
-export default function StatsCard({ label, value, subValue, trend, trendType, Icon, children }: StatsCardProps) {
+
+export default function StatsCard({ label, value, subValue, trend, trendType, Icon, children }: StatItem & { label: string, subValue?: number, Icon: LucideIcon, children?: React.ReactNode }) {
     return (
         <div className="bg-white rounded-lg p-6 shadow-sm flex items-start justify-between">
             <div>
@@ -26,7 +19,7 @@ export default function StatsCard({ label, value, subValue, trend, trendType, Ic
             </div>
 
             <div className="bg-green-100 rounded-xl p-3">
-                <Icon size={22} className="text-green-500 fill-green-500" />
+                <Icon size={22} className="text-green-500" />
             </div>
         </div>
     );
