@@ -104,7 +104,7 @@ export default function DashboardPage() {
                   <XAxis dataKey="month" tick={{ fontSize: 12, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fontSize: 12, fill: '#94a3b8' }} axisLine={false} tickLine={false} tickFormatter={(v: number) => `$${(v / 1000).toFixed(1)}k`} width={48} />
                   <Tooltip
-                    formatter={(value: number) => [formatCurrency(value), 'Revenue']}
+                    formatter={(value) => [formatCurrency(Number(value)), 'Revenue']}
                     contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '12px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                     cursor={{ fill: '#f0fdf4' }}
                   />

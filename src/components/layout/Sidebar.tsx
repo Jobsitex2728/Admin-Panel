@@ -13,7 +13,7 @@ const navItems = [
   { to: '/users', icon: Users, label: 'Users' },
   { to: '/drivers', icon: Truck, label: 'Drivers' },
   { to: '/jobs', icon: Briefcase, label: 'Jobs' },
-  { to: '/truck-types', icon: TruckIcon, label: 'Truck Types' },
+  { to: '/truck-types', icon: Truck, label: 'Truck Types' },
   { to: '/withdrawals', icon: Wallet, label: 'Withdrawals' },
   { to: '/cms', icon: FileText, label: 'CMS Pages' },
 ]
