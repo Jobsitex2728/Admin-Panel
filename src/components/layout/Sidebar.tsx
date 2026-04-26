@@ -1,7 +1,7 @@
 import { NavLink, useNavigate } from 'react-router'
 import { useDispatch, useSelector } from 'react-redux'
 import {
-  LayoutDashboard, Users, Truck, Briefcase, TruckIcon,
+  LayoutDashboard, Users, Truck, Briefcase,
   Wallet, FileText, LogOut, ChevronRight,
 } from 'lucide-react'
 import { cn, getInitials } from '@/lib/utils'
@@ -31,9 +31,7 @@ export function Sidebar() {
   return (
     <aside className="fixed inset-y-0 left-0 z-40 flex w-64 flex-col bg-slate-950">
       <div className="flex h-16 items-center gap-3 px-6 border-b border-slate-800">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500">
-          <TruckIcon className="h-4 w-4 text-white" />
-        </div>
+        <img src="/logo.png" alt="JobsiteX" className="h-8 w-auto shrink-0" />
         <div>
           <span className="text-base font-bold text-white">JobsiteX</span>
           <p className="text-[10px] text-slate-400 -mt-0.5 uppercase tracking-wider">Admin Console</p>

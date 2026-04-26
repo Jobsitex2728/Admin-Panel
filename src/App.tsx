@@ -11,10 +11,12 @@ import JobsPage from '@/pages/JobsManagement'
 import TruckTypesPage from '@/pages/TruckTypes'
 import WithdrawalsPage from '@/pages/Withdrawals'
 import CmsPagesPage from '@/pages/CmsPages'
+import ForgotPasswordPage from '@/pages/ForgotPassword'
 import NotFoundPage from '@/pages/NotFound'
 
 const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
+  { path: '/forgot-password', element: <ForgotPasswordPage /> },
   {
     element: <ProtectedRoute />,
     children: [

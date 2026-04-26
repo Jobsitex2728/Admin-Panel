@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { useDispatch } from 'react-redux'
-import { Eye, EyeOff, TruckIcon, Mail, Lock, ArrowRight } from 'lucide-react'
+import { Eye, EyeOff, Mail, Lock, ArrowRight } from 'lucide-react'
+import { Link } from 'react-router'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -49,19 +50,16 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex">
       {/* Left panel */}
-      <div className="hidden lg:flex lg:w-1/2 xl:w-2/5 flex-col justify-between bg-slate-950 p-12 relative overflow-hidden">
-        {/* Background decoration */}
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute -top-32 -left-32 h-96 w-96 rounded-full bg-emerald-500/10 blur-3xl" />
-          <div className="absolute bottom-0 right-0 h-80 w-80 rounded-full bg-emerald-500/5 blur-3xl" />
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-64 w-64 rounded-full bg-emerald-400/5 blur-2xl" />
-        </div>
+      <div
+        className="hidden lg:flex lg:w-1/2 xl:w-2/5 flex-col justify-between p-12 relative overflow-hidden"
+        style={{ backgroundImage: 'url(/bg-image.png)', backgroundSize: 'cover', backgroundPosition: 'center' }}
+      >
+        {/* Dark overlay */}
+        <div className="absolute inset-0 bg-slate-950/75 pointer-events-none" />
 
         {/* Logo */}
         <div className="relative flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500 shadow-lg shadow-emerald-500/25">
-            <TruckIcon className="h-5 w-5 text-white" />
-          </div>
+          <img src="/logo.png" alt="JobsiteX" className="h-10 w-auto" />
           <div>
             <span className="text-lg font-bold text-white">JobsiteX</span>
             <p className="text-[10px] text-slate-400 uppercase tracking-wider -mt-0.5">Admin Console</p>
@@ -110,9 +108,7 @@ export default function LoginPage() {
         <div className="w-full max-w-md">
           {/* Mobile logo */}
           <div className="flex items-center gap-3 mb-8 lg:hidden">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500">
-              <TruckIcon className="h-5 w-5 text-white" />
-            </div>
+            <img src="/logo.png" alt="JobsiteX" className="h-9 w-auto" />
             <span className="text-lg font-bold text-slate-900">JobsiteX Admin</span>
           </div>
 
@@ -141,7 +137,12 @@ export default function LoginPage() {
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="password">Password</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="password">Password</Label>
+                  <Link to="/forgot-password" className="text-xs text-emerald-600 hover:text-emerald-700 transition-colors">
+                    Forgot password?
+                  </Link>
+                </div>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                   <Input
