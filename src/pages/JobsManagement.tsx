@@ -1,182 +1,245 @@
-import { useState } from "react";
-import { useExportJobsMutation, useGetJobsQuery, useToggleJobBlockMutation } from "../redux/services/jobsApi";
-import { TruckType, type Job } from "../types/job.types";
-import JobsManagementSkeleton from "../components/jobsManagement/JobsManagementSkeleton";
-import JobsManagementError from "../components/jobsManagement/JobsManagementError";
-import JobDetailsDialog from "../components/jobsManagement/JobDetailsDialog";
-import BlockConfirmDialog from "../components/jobsManagement/BlockConfirmDialog";
-import JobsPagination from "../components/jobsManagement/JobsPagination";
-import JobsTable from "../components/jobsManagement/JobsTable";
-import { ArrowDown, ChevronDown, SearchIcon } from "lucide-react";
+import { useState } from 'react'
+import { Search, MapPin, Eye } from 'lucide-react'
+import { useGetJobsQuery, useGetJobQuery } from '@/store/api/jobsApi'
+import { Card, CardContent } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogBody } from '@/components/ui/dialog'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { StatusBadge } from '@/components/shared/StatusBadge'
+import { Pagination } from '@/components/shared/Pagination'
+import { PageHeader } from '@/components/shared/PageHeader'
+import { formatCurrency, formatDate, formatDateTime, getInitials } from '@/lib/utils'
+import type { Job, JobStatus } from '@/types/job'
 
+const JOB_STATUSES: JobStatus[] = ['PENDING', 'BROADCAST', 'BOOKED', 'ON_WAY', 'ARRIVED', 'LOADED', 'IN_TRANSIT', 'DELIVERED', 'CANCELLED']
 
+function JobDetailPanel({ jobId, onClose }: { jobId: string; onClose: () => void }) {
+  const { data: job, isLoading } = useGetJobQuery(jobId)
 
-export default function JobsManagement() {
-    const [searchTerm, setSearchTerm] = useState('');
-    const [selectedTruckType, setSelectedTruckType] = useState<string>('');
-    const [currentPage, setCurrentPage] = useState(1);
-
-    const { data, isLoading, error, refetch } = useGetJobsQuery({
-        page: currentPage,
-        limit: 10,
-        search: searchTerm,
-        truckType: selectedTruckType,
-    });
-
-    const [selectedJob, setSelectedJob] = useState<Job | null>(null);
-    const [jobToBlock, setJobToBlock] = useState<{ job: Job; action: 'block' | 'unblock' } | null>(null);
-    const [isDetailsOpen, setIsDetailsOpen] = useState(false);
-    const [isBlockDialogOpen, setIsBlockDialogOpen] = useState(false);
-
-    const [toggleBlock, { isLoading: isToggling }] = useToggleJobBlockMutation();
-    const [exportJobs, { isLoading: isExporting }] = useExportJobsMutation();
-
-    const handleViewDetails = (job: Job) => {
-        setSelectedJob(job);
-        setIsDetailsOpen(true);
-    };
-
-    const handleBlockClick = (job: Job) => {
-        setJobToBlock({ job, action: job.blocked ? 'unblock' : 'block' });
-        setIsBlockDialogOpen(true);
-    };
-
-    const handleBlockConfirm = async () => {
-        if (!jobToBlock) return;
-        try {
-            await toggleBlock({
-                id: jobToBlock.job.id,
-                blocked: !jobToBlock.job.blocked,
-            }).unwrap();
-            setIsBlockDialogOpen(false);
-            setJobToBlock(null);
-        } catch (error) {
-            console.error('Failed to toggle block status:', error);
-        }
-    };
-
-    const handleExport = async (params: { search?: string; truckType?: string }) => {
-        try {
-            const blob = await exportJobs(params).unwrap();
-            const url = window.URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `jobs-export-${new Date().toISOString().split('T')[0]}.csv`;
-            link.click();
-            window.URL.revokeObjectURL(url);
-        } catch (error) {
-            console.error('Failed to export jobs:', error);
-        }
-    };
-
-    const closeDialogs = (type: 'details' | 'block') => {
-        if (type === 'details') {
-            setIsDetailsOpen(false);
-            setSelectedJob(null);
-        } else {
-            setIsBlockDialogOpen(false);
-            setJobToBlock(null);
-        }
-    };
-
-    const truckTypes = data?.data
-        ? ['All', ...Object.values(TruckType)]
-        : ['All'];
-
-    if (isLoading) return <JobsManagementSkeleton />;
-    if (error) return <JobsManagementError onRetry={refetch} />;
-
-    return (
-        <div className="p-6 bg-gray-50 min-h-screen">
-            <div className="mb-6">
-                <h1 className="text-2xl font-bold text-gray-900">Jobs Management</h1>
-                <p className="text-sm text-gray-600 mt-1">Manage and track all your jobs</p>
+  return (
+    <Dialog open onOpenChange={o => { if (!o) onClose() }}>
+      <DialogContent size="lg">
+        <DialogHeader>
+          <DialogTitle>Job Details</DialogTitle>
+        </DialogHeader>
+        <DialogBody className="space-y-4 overflow-y-auto max-h-[65vh]">
+          {isLoading ? (
+            <div className="space-y-3">
+              {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
             </div>
+          ) : job ? (
+            <>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-mono text-slate-400">{job.id}</span>
+                <StatusBadge status={job.status} type="job" />
+              </div>
 
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
-                <div className="flex flex-wrap items-center justify-between gap-4">
-                    <div className="flex-1 min-w-75">
-                        <div className="relative">
-                            <input
-                                type="text"
-                                placeholder="Search by job ID, customer name, or email..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            />
-                            <SearchIcon className=" absolute left-3 top-2 text-gray-400" />
-                        </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-lg bg-slate-50 p-3">
+                  <p className="text-xs text-slate-400 mb-1">Customer</p>
+                  <div className="flex items-center gap-2">
+                    <Avatar className="h-6 w-6">
+                      <AvatarImage src={job.customer.user.avatar} />
+                      <AvatarFallback className="text-[10px]">{getInitials(job.customer.user.fullName)}</AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <p className="text-sm font-medium text-slate-900">{job.customer.user.fullName}</p>
+                      <p className="text-xs text-slate-400">{job.customer.user.email}</p>
                     </div>
-
-                    <div className="w-48 relative group">
-                        <select
-                            value={selectedTruckType}
-                            onChange={(e) =>
-                                setSelectedTruckType(e.target.value === "All" ? "" : e.target.value)
-                            }
-                            className="w-full px-3 py-2 appearance-none border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        >
-                            {truckTypes.map((type) => (
-                                <option key={type} value={type}>
-                                    {type === "All" ? "All Truck Types" : type}
-                                </option>
-                            ))}
-                        </select>
-
-                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
-                            <ChevronDown
-                                className="h-4 w-4 text-gray-400 transition-transform duration-200 ease-in-out group-focus-within:rotate-180"
-                            />
-                        </div>
-                    </div>
-
-                    {/* Export Button */}
-                    <button
-                        onClick={() => handleExport({ search: searchTerm, truckType: selectedTruckType })}
-                        disabled={isExporting}
-                        className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 flex items-center gap-2"
-                    >
-                        {isExporting ? (
-                            <span>Exporting...</span>
-                        ) : (
-                            <>
-                                <ArrowDown />
-                                Export Report
-                            </>
-                        )}
-                    </button>
+                  </div>
                 </div>
-            </div>
+                <div className="rounded-lg bg-slate-50 p-3">
+                  <p className="text-xs text-slate-400 mb-1">Driver</p>
+                  {job.driver ? (
+                    <div className="flex items-center gap-2">
+                      <Avatar className="h-6 w-6">
+                        <AvatarImage src={job.driver.user.avatar} />
+                        <AvatarFallback className="text-[10px]">{getInitials(job.driver.user.fullName)}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="text-sm font-medium text-slate-900">{job.driver.user.fullName}</p>
+                        <p className="text-xs text-slate-400">{job.driver.user.email}</p>
+                      </div>
+                    </div>
+                  ) : <p className="text-sm text-slate-400">Not assigned</p>}
+                </div>
+              </div>
 
-            <JobsTable
-                jobs={data?.data || []}
-                onViewDetails={handleViewDetails}
-                onBlockClick={handleBlockClick}
-                isToggling={isToggling}
-            />
+              <div className="space-y-2">
+                <div className="flex items-start gap-2">
+                  <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100">
+                    <MapPin className="h-3 w-3 text-emerald-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-400">Pickup</p>
+                    <p className="text-sm text-slate-900">{job.pickupAddress}</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-2">
+                  <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-red-100">
+                    <MapPin className="h-3 w-3 text-red-500" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-400">Dropoff</p>
+                    <p className="text-sm text-slate-900">{job.dropoffAddress}</p>
+                  </div>
+                </div>
+              </div>
 
-            {data && data.pagination.total > 0 && (
-                <JobsPagination
-                    currentPage={currentPage}
-                    totalItems={data.pagination.total}
-                    pageSize={10}
-                    onPageChange={setCurrentPage}
-                />
-            )}
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  { label: 'Truck Type', value: job.truckType.name },
+                  { label: 'Distance', value: job.distanceKm ? `${job.distanceKm.toFixed(1)} km` : '—' },
+                  { label: 'Scheduled', value: formatDateTime(job.scheduledAt) },
+                  { label: 'Est. Fare', value: job.estimatedFare ? formatCurrency(job.estimatedFare) : '—' },
+                  { label: 'Final Fare', value: job.finalFare ? formatCurrency(job.finalFare) : '—' },
+                  { label: 'Created', value: formatDate(job.createdAt) },
+                ].map(({ label, value }) => (
+                  <div key={label} className="rounded-lg bg-slate-50 p-3">
+                    <p className="text-xs text-slate-400">{label}</p>
+                    <p className="text-sm font-medium text-slate-900 mt-0.5">{value}</p>
+                  </div>
+                ))}
+              </div>
 
-            <JobDetailsDialog
-                job={selectedJob}
-                isOpen={isDetailsOpen}
-                onClose={() => closeDialogs('details')}
-            />
+              {job.payment && (
+                <div className="rounded-lg border border-slate-200 p-3">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Payment</p>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-600">Amount</span>
+                    <span className="font-medium">{formatCurrency(job.payment.amount)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm mt-1">
+                    <span className="text-slate-600">Platform fee</span>
+                    <span className="font-medium">{formatCurrency(job.payment.platformFee)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm mt-1">
+                    <span className="text-slate-600">Driver payout</span>
+                    <span className="font-medium text-emerald-600">{formatCurrency(job.payment.driverPayout)}</span>
+                  </div>
+                </div>
+              )}
 
-            <BlockConfirmDialog
-                isOpen={isBlockDialogOpen}
-                jobId={jobToBlock?.job.jobId || ''}
-                currentBlocked={jobToBlock?.job.blocked || false}
-                onConfirm={handleBlockConfirm}
-                onCancel={() => closeDialogs('block')}
-            />
+              {job.review && (
+                <div className="rounded-lg border border-slate-200 p-3">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Review</p>
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <span key={i} className={i < job.review!.rating ? 'text-amber-400' : 'text-slate-200'}>★</span>
+                    ))}
+                    <span className="ml-1 text-sm text-slate-600">{job.review.rating}/5</span>
+                  </div>
+                  {job.review.comment && <p className="text-sm text-slate-600 mt-1">"{job.review.comment}"</p>}
+                </div>
+              )}
+            </>
+          ) : null}
+        </DialogBody>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+export default function JobsPage() {
+  const [page, setPage] = useState(1)
+  const [search, setSearch] = useState('')
+  const [status, setStatus] = useState<JobStatus | ''>('')
+  const [selectedJobId, setSelectedJobId] = useState<string | null>(null)
+
+  const { data, isLoading } = useGetJobsQuery({ page, limit: 10, status: status || undefined })
+
+  const filtered = data?.jobs.filter((j: Job) =>
+    !search ||
+    j.pickupAddress.toLowerCase().includes(search.toLowerCase()) ||
+    j.dropoffAddress.toLowerCase().includes(search.toLowerCase()) ||
+    j.customer.user.fullName.toLowerCase().includes(search.toLowerCase())
+  ) ?? []
+
+  return (
+    <div>
+      <PageHeader title="Jobs" description="Monitor all platform jobs" />
+
+      <div className="flex flex-wrap gap-3 mb-5">
+        <div className="relative flex-1 min-w-48">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+          <Input placeholder="Search by customer or address…" className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
         </div>
-    );
+        <Select value={status || 'all'} onValueChange={v => { setStatus(v === 'all' ? '' : v as JobStatus); setPage(1) }}>
+          <SelectTrigger className="w-44"><SelectValue placeholder="All statuses" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All statuses</SelectItem>
+            {JOB_STATUSES.map(s => <SelectItem key={s} value={s}>{s.replace('_', ' ')}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <Card>
+        <CardContent className="p-0">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-slate-100">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Customer</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide hidden lg:table-cell">Route</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Status</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide hidden md:table-cell">Fare</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide hidden md:table-cell">Date</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-slate-500 uppercase tracking-wide">Detail</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-50">
+              {isLoading
+                ? Array.from({ length: 8 }).map((_, i) => (
+                    <tr key={i}><td className="px-4 py-3" colSpan={6}><Skeleton className="h-10 w-full" /></td></tr>
+                  ))
+                : filtered.map((job: Job) => (
+                    <tr key={job.id} className="hover:bg-slate-50/50 transition-colors">
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <Avatar className="h-7 w-7">
+                            <AvatarImage src={job.customer.user.avatar} />
+                            <AvatarFallback className="text-[10px]">{getInitials(job.customer.user.fullName)}</AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p className="text-sm font-medium text-slate-900">{job.customer.user.fullName}</p>
+                            <p className="text-xs text-slate-400">{job.truckType.name}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 hidden lg:table-cell max-w-xs">
+                        <p className="text-xs text-slate-500 truncate">{job.pickupAddress}</p>
+                        <p className="text-xs text-slate-400 truncate">→ {job.dropoffAddress}</p>
+                      </td>
+                      <td className="px-4 py-3">
+                        <StatusBadge status={job.status} type="job" />
+                      </td>
+                      <td className="px-4 py-3 hidden md:table-cell">
+                        <span className="text-sm font-medium text-slate-900">
+                          {job.finalFare ? formatCurrency(job.finalFare) : job.estimatedFare ? formatCurrency(job.estimatedFare) : '—'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 hidden md:table-cell">
+                        <span className="text-sm text-slate-500">{formatDate(job.createdAt)}</span>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSelectedJobId(job.id)}>
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+            </tbody>
+          </table>
+          {!isLoading && filtered.length === 0 && (
+            <div className="py-12 text-center text-slate-400 text-sm">No jobs found.</div>
+          )}
+          {data && <Pagination page={page} total={data.total} limit={10} onPageChange={setPage} />}
+        </CardContent>
+      </Card>
+
+      {selectedJobId && <JobDetailPanel jobId={selectedJobId} onClose={() => setSelectedJobId(null)} />}
+    </div>
+  )
 }

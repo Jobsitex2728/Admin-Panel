@@ -1,311 +1,153 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ChevronDown, Download } from 'lucide-react';
-import { useExportDriversMutation, useGetDriversQuery, useToggleDriverBlockMutation } from '../redux/services/driverApi';
-import type { DriverListItem } from '../types/driver.types';
-import SearchInput from '../components/shared/SearchInput';
-import Button from '../components/shared/Button';
-import StatusBadge from '../components/shared/StatusBadge';
-import Avatar from '../components/shared/Avatar';
-import DriverTableSkeleton from '../components/driverManagement/DriverTableSkeleton';
-import DriverTableError from '../components/driverManagement/DriverTableError';
-import BlockConfirmDialog from '../components/driverManagement/BlockConfirmDialog';
+import { useState } from 'react'
+import { useNavigate } from 'react-router'
+import { Search, ChevronRight, Clock } from 'lucide-react'
+import { useGetDriversQuery } from '@/store/api/driversApi'
+import type { DriverListItem } from '@/types/driver'
+import { Card, CardContent } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { StatusBadge } from '@/components/shared/StatusBadge'
+import { Pagination } from '@/components/shared/Pagination'
+import { PageHeader } from '@/components/shared/PageHeader'
+import { formatDate, getInitials } from '@/lib/utils'
+import type { DriverStatus } from '@/types/driver'
 
-export default function DriverManagement() {
-    const navigate = useNavigate();
-    const [searchTerm, setSearchTerm] = useState('');
-    const [statusFilter, setStatusFilter] = useState<string>('');
-    const [availabilityFilter, setAvailabilityFilter] = useState<string>('');
-    const [currentPage, setCurrentPage] = useState(1);
-    const [driverToBlock, setDriverToBlock] = useState<{ driver: DriverListItem; action: 'block' | 'unblock' } | null>(null);
-    const [isBlockDialogOpen, setIsBlockDialogOpen] = useState(false);
-    const [exportDrivers, { isLoading: isExporting }] = useExportDriversMutation();
+export default function DriversPage() {
+  const navigate = useNavigate()
+  const [page, setPage] = useState(1)
+  const [search, setSearch] = useState('')
+  const [tab, setTab] = useState<'all' | 'pending'>('all')
 
-    const handleExport = async () => {
-        try {
-            const blob = await exportDrivers({
-                search: searchTerm,
-                status: statusFilter,
-                availability: availabilityFilter,
-            }).unwrap();
+  const statusFilter: DriverStatus | undefined = tab === 'pending' ? 'PENDING' : undefined
 
-            const url = window.URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `drivers-export-${new Date().toISOString().split('T')[0]}.csv`;
-            link.click();
-            window.URL.revokeObjectURL(url);
-        } catch (error) {
-            console.error('Failed to export drivers:', error);
-        }
-    };
+  const { data, isLoading } = useGetDriversQuery({ page, limit: 10, status: statusFilter })
 
-    const { data, isLoading, error, refetch } = useGetDriversQuery({
-        page: currentPage,
-        limit: 10,
-        search: searchTerm,
-        status: statusFilter,
-        availability: availabilityFilter,
-    });
+  const filtered = data?.drivers.filter((d: DriverListItem) =>
+    !search ||
+    d.user.fullName.toLowerCase().includes(search.toLowerCase()) ||
+    d.user.email.toLowerCase().includes(search.toLowerCase())
+  ) ?? []
 
-    console.log(data);
+  return (
+    <div>
+      <PageHeader title="Drivers" description="Manage driver profiles and approvals" />
 
-    const [toggleBlock, { isLoading: isToggling }] = useToggleDriverBlockMutation();
-
-    const handleViewProfile = (driverId: string) => {
-        navigate(`/drivers/${driverId}`);
-    };
-
-    const handleViewDocuments = (driverId: string) => {
-        navigate(`/drivers/${driverId}/documents`);
-    };
-
-    const handleBlockClick = (driver: DriverListItem) => {
-        setDriverToBlock({ driver, action: driver.blocked ? 'unblock' : 'block' });
-        setIsBlockDialogOpen(true);
-    };
-
-    const handleBlockConfirm = async () => {
-        if (!driverToBlock) return;
-        try {
-            await toggleBlock({
-                id: driverToBlock.driver.id,
-                blocked: !driverToBlock.driver.blocked,
-            }).unwrap();
-            setIsBlockDialogOpen(false);
-            setDriverToBlock(null);
-        } catch (error) {
-            console.error('Failed to toggle block status:', error);
-        }
-    };
-
-    const closeBlockDialog = () => {
-        setIsBlockDialogOpen(false);
-        setDriverToBlock(null);
-    };
-
-    if (isLoading) return <DriverTableSkeleton />;
-    if (error) return <DriverTableError onRetry={refetch} />;
-
-    return (
-        <div className="p-6 bg-gray-50 min-h-screen">
-            {/* Header */}
-            <div className="mb-6">
-                <h1 className="text-2xl font-bold text-gray-900">All Driver</h1>
-                <p className="text-sm text-gray-600 mt-1">Manage and track all your drivers</p>
-            </div>
-
-            {/* Filters Bar */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
-                <div className="flex flex-wrap items-center gap-4">
-                    <div className="flex-1 min-w-75">
-                        <SearchInput
-                            value={searchTerm}
-                            onChange={setSearchTerm}
-                            placeholder="Search by driver name, ID, or phone number..."
-                        />
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                        {/* Status Filter */}
-                        <div className="relative group w-40">
-                            <select
-                                value={statusFilter}
-                                onChange={(e) => setStatusFilter(e.target.value)}
-                                className="w-full px-3 py-2 appearance-none border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
-                            >
-                                <option value="">All Status</option>
-                                <option value="Verified">Verified</option>
-                                <option value="Pending">Pending</option>
-                                <option value="Rejected">Rejected</option>
-                                <option value="Suspended">Suspended</option>
-                            </select>
-                            <ChevronDown className="absolute right-3 top-2.5 text-gray-400 pointer-events-none" size={18} />
-                        </div>
-
-                        {/* Availability Filter */}
-                        <div className="relative group w-40">
-                            <select
-                                value={availabilityFilter}
-                                onChange={(e) => setAvailabilityFilter(e.target.value)}
-                                className="w-full px-3 py-2 appearance-none border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
-                            >
-                                <option value="">All Availability</option>
-                                <option value="Online">Online</option>
-                                <option value="Offline">Offline</option>
-                                <option value="On Trip">On Trip</option>
-                                <option value="Break">Break</option>
-                            </select>
-                            <ChevronDown className="absolute right-3 top-2.5 text-gray-400 pointer-events-none" size={18} />
-                        </div>
-
-                        {/* Export Button */}
-                        <Button variant="success" onClick={handleExport}>
-                            <Download size={18} className="mr-2" />
-                            Export
-                        </Button>
-                    </div>
-                </div>
-            </div>
-
-            {/* Drivers Table */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-                <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
-                            <tr>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Driver Name
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Truck Assigned
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Phone number
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Availability
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Status
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Actions
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                            {data?.data.map((driver) => (
-                                <tr key={driver.id} className="hover:bg-gray-50">
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <div className="flex items-center">
-                                            <Avatar src={driver.avatar} name={driver.name} size="sm" />
-                                            <div className="ml-3">
-                                                <div className="text-sm font-medium text-gray-900">{driver.name}</div>
-                                                <div className="text-xs text-gray-500">ID: {driver.driverId}</div>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        {driver.truckAssigned.isAssigned ? (
-                                            <div>
-                                                <div className="text-sm font-medium text-gray-900">{driver.truckAssigned.model}</div>
-                                                <div className="text-xs text-gray-500">
-                                                    {driver.truckAssigned.type} + {driver.truckAssigned.licensePlate}
-                                                </div>
-                                            </div>
-                                        ) : (
-                                            <div className="text-sm text-gray-500">Unassigned</div>
-                                        )}
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        {driver.phoneNumber}
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <StatusBadge status={driver.availability} />
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <StatusBadge status={driver.status} />
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                                        <div className="flex items-center gap-2">
-                                            <button
-                                                onClick={() => handleBlockClick(driver)}
-                                                disabled={isToggling}
-                                                className={`px-3 py-1 text-xs font-medium rounded-md ${driver.blocked
-                                                        ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                                                        : 'bg-red-100 text-red-700 hover:bg-red-200'
-                                                    } disabled:opacity-50`}
-                                            >
-                                                {driver.blocked ? 'Unblock' : 'Block'}
-                                            </button>
-                                            <span className="text-gray-300">|</span>
-                                            <button
-                                                onClick={() => handleViewProfile(driver.id)}
-                                                className="px-3 py-1 text-xs font-medium bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200"
-                                            >
-                                                View
-                                            </button>
-                                            {driver.status === 'Pending' && (
-                                                <>
-                                                    <span className="text-gray-300">|</span>
-                                                    <button
-                                                        onClick={() => handleViewDocuments(driver.id)}
-                                                        className="px-3 py-1 text-xs font-medium bg-purple-100 text-purple-700 rounded-md hover:bg-purple-200"
-                                                    >
-                                                        Documents
-                                                    </button>
-                                                </>
-                                            )}
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-
-                {/* Pagination */}
-                {data && data.pagination.total > 0 && (
-                    <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
-                        <div className="flex-1 flex justify-between sm:hidden">
-                            <button
-                                onClick={() => setCurrentPage(currentPage - 1)}
-                                disabled={currentPage === 1}
-                                className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
-                            >
-                                Previous
-                            </button>
-                            <button
-                                onClick={() => setCurrentPage(currentPage + 1)}
-                                disabled={currentPage >= Math.ceil(data.pagination.total / data.pagination.limit)}
-                                className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
-                            >
-                                Next
-                            </button>
-                        </div>
-                        <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-                            <div>
-                                <p className="text-sm text-gray-700">
-                                    Showing <span className="font-medium">{(currentPage - 1) * data.pagination.limit + 1}</span>{' '}
-                                    to{' '}
-                                    <span className="font-medium">
-                                        {Math.min(currentPage * data.pagination.limit, data.pagination.total)}
-                                    </span>{' '}
-                                    of <span className="font-medium">{data.pagination.total}</span> drivers
-                                </p>
-                            </div>
-                            <div>
-                                <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
-                                    <button
-                                        onClick={() => setCurrentPage(currentPage - 1)}
-                                        disabled={currentPage === 1}
-                                        className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
-                                    >
-                                        Previous
-                                    </button>
-                                    <button
-                                        onClick={() => setCurrentPage(currentPage + 1)}
-                                        disabled={currentPage >= Math.ceil(data.pagination.total / data.pagination.limit)}
-                                        className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
-                                    >
-                                        Next
-                                    </button>
-                                </nav>
-                            </div>
-                        </div>
-                    </div>
-                )}
-            </div>
-
-            {/* Block Confirmation Dialog */}
-            <BlockConfirmDialog
-                isOpen={isBlockDialogOpen}
-                driverName={driverToBlock?.driver.name || ''}
-                currentBlocked={driverToBlock?.driver.blocked || false}
-                onConfirm={handleBlockConfirm}
-                onCancel={closeBlockDialog}
-            />
+      <Tabs value={tab} onValueChange={v => { setTab(v as typeof tab); setPage(1) }} className="mb-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <TabsList>
+            <TabsTrigger value="all">All Drivers</TabsTrigger>
+            <TabsTrigger value="pending">
+              Pending Approval
+              {tab !== 'pending' && data && (
+                <span className="ml-1.5 rounded-full bg-amber-100 text-amber-700 text-xs px-1.5 py-0.5">
+                  {data.total}
+                </span>
+              )}
+            </TabsTrigger>
+          </TabsList>
+          <div className="relative w-72">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <Input placeholder="Search drivers…" className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
+          </div>
         </div>
-    );
+
+        <TabsContent value="all">
+          <DriversTable drivers={filtered} isLoading={isLoading} onRowClick={id => navigate(`/drivers/${id}`)} />
+        </TabsContent>
+        <TabsContent value="pending">
+          <DriversTable drivers={filtered} isLoading={isLoading} onRowClick={id => navigate(`/drivers/${id}`)} showPendingBadge />
+        </TabsContent>
+      </Tabs>
+
+      {data && <Pagination page={page} total={data.total} limit={10} onPageChange={setPage} />}
+    </div>
+  )
+}
+
+function DriversTable({
+  drivers, isLoading, onRowClick, showPendingBadge,
+}: {
+  drivers: DriverListItem[]
+  isLoading: boolean
+  onRowClick: (id: string) => void
+  showPendingBadge?: boolean
+}) {
+  return (
+    <Card>
+      <CardContent className="p-0">
+        <table className="w-full">
+          <thead>
+            <tr className="border-b border-slate-100">
+              <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Driver</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide hidden lg:table-cell">Truck Type</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Status</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide hidden md:table-cell">Profile</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide hidden md:table-cell">Joined</th>
+              <th className="px-4 py-3 text-right text-xs font-semibold text-slate-500 uppercase tracking-wide">View</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-50">
+            {isLoading
+              ? Array.from({ length: 6 }).map((_, i) => (
+                  <tr key={i}><td className="px-4 py-3" colSpan={6}><Skeleton className="h-10 w-full" /></td></tr>
+                ))
+              : drivers.map(driver => (
+                  <tr
+                    key={driver.id}
+                    className="hover:bg-slate-50/50 transition-colors cursor-pointer"
+                    onClick={() => onRowClick(driver.id)}
+                  >
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <div className="relative">
+                          <Avatar className="h-8 w-8">
+                            <AvatarImage src={driver.user.avatar} />
+                            <AvatarFallback>{getInitials(driver.user.fullName)}</AvatarFallback>
+                          </Avatar>
+                          {driver.isAvailable && (
+                            <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-500 border-2 border-white" />
+                          )}
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-slate-900">{driver.user.fullName}</p>
+                          <p className="text-xs text-slate-400">{driver.user.email}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 hidden lg:table-cell">
+                      <span className="text-sm text-slate-600">{driver.truckType?.name ?? '—'}</span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-1.5">
+                        <StatusBadge status={driver.driverStatus} type="driver" />
+                        {showPendingBadge && driver.driverStatus === 'PENDING' && (
+                          <Clock className="h-3.5 w-3.5 text-amber-500" />
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 hidden md:table-cell">
+                      <span className={`text-xs font-medium ${driver.isProfileComplete ? 'text-emerald-600' : 'text-slate-400'}`}>
+                        {driver.isProfileComplete ? 'Complete' : 'Incomplete'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 hidden md:table-cell">
+                      <span className="text-sm text-slate-500">{formatDate(driver.createdAt)}</span>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <ChevronRight className="h-4 w-4 text-slate-400 ml-auto" />
+                    </td>
+                  </tr>
+                ))}
+          </tbody>
+        </table>
+        {!isLoading && drivers.length === 0 && (
+          <div className="py-12 text-center text-slate-400 text-sm">No drivers found.</div>
+        )}
+      </CardContent>
+    </Card>
+  )
 }

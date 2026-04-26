@@ -1,58 +1,47 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Provider } from 'react-redux';
-import { store } from './redux/store';
-import Dashboard from './pages/Dashboard';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import UserManagement from './pages/UserManagement';
-import MainLayout from './components/layout/DashboardLayout';
-import ProtectedRoute from './components/auth/ProtectedRoute';
-import NotFound from './pages/NotFound';
-import LoginPage from './pages/Login';
-import JobsManagement from './pages/JobsManagement';
-import DriverManagement from './pages/DriverManagement';
-import DriverProfile from './pages/DriverProfile';
-import DriverDocuments from './pages/DriverDocuments';
+import { createBrowserRouter, RouterProvider, Navigate, Outlet } from 'react-router'
+import { Toaster } from 'sonner'
+import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
+import { DashboardLayout } from '@/components/layout/DashboardLayout'
+import LoginPage from '@/pages/Login'
+import DashboardPage from '@/pages/Dashboard'
+import UsersPage from '@/pages/UserManagement'
+import DriversPage from '@/pages/DriverManagement'
+import DriverDetailPage from '@/pages/DriverProfile'
+import JobsPage from '@/pages/JobsManagement'
+import TruckTypesPage from '@/pages/TruckTypes'
+import WithdrawalsPage from '@/pages/Withdrawals'
+import CmsPagesPage from '@/pages/CmsPages'
+import NotFoundPage from '@/pages/NotFound'
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      refetchOnWindowFocus: false,
-      retry: 1,
-      staleTime: 5 * 60 * 1000, // 5 minutes
-    },
+const router = createBrowserRouter([
+  { path: '/login', element: <LoginPage /> },
+  {
+    element: <ProtectedRoute />,
+    children: [
+      {
+        element: <DashboardLayout />,
+        children: [
+          { index: true, element: <Navigate to="/dashboard" replace /> },
+          { path: '/dashboard', element: <DashboardPage /> },
+          { path: '/users', element: <UsersPage /> },
+          { path: '/drivers', element: <DriversPage /> },
+          { path: '/drivers/:id', element: <DriverDetailPage /> },
+          { path: '/jobs', element: <JobsPage /> },
+          { path: '/truck-types', element: <TruckTypesPage /> },
+          { path: '/withdrawals', element: <WithdrawalsPage /> },
+          { path: '/cms', element: <CmsPagesPage /> },
+        ],
+      },
+    ],
   },
-});
+  { path: '*', element: <NotFoundPage /> },
+])
 
-function App() {
+export default function App() {
   return (
-    <Provider store={store}>
-      <QueryClientProvider client={queryClient}>
-        <BrowserRouter>
-          <Routes>
-            {/* Public routes */}
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/signup" element={<div>Signup</div>} />
-
-            {/* Protected routes with MainLayout */}
-            <Route element={<ProtectedRoute />}>
-              <Route element={<MainLayout />}>
-                <Route path="/" element={<Dashboard />} />
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/users" element={<UserManagement />} />
-                <Route path="/jobs" element={<JobsManagement />} />
-                <Route path="/drivers" element={<DriverManagement />} />
-                <Route path="/drivers/:driverId" element={<DriverProfile />} />
-                <Route path="/drivers/:driverId/documents" element={<DriverDocuments />} />
-              </Route>
-            </Route>
-
-            {/* Catch all - 404 */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </QueryClientProvider>
-    </Provider>
-  );
+    <>
+      <RouterProvider router={router} />
+      <Toaster position="top-right" richColors />
+    </>
+  )
 }
-
-export default App;

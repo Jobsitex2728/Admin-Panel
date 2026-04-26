@@ -1,52 +1,89 @@
-import { LayoutDashboard, Truck, Users, CreditCard, Star, Settings, LogOut } from 'lucide-react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router'
+import { useDispatch, useSelector } from 'react-redux'
+import {
+  LayoutDashboard, Users, Truck, Briefcase, TruckIcon,
+  Wallet, FileText, LogOut, ChevronRight,
+} from 'lucide-react'
+import { cn, getInitials } from '@/lib/utils'
+import { logout } from '@/store/authSlice'
+import type { RootState } from '@/store'
 
-const menuItems = [
-    { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
-    { icon: Truck, label: 'Jobs Management', path: '/jobs' },
-    { icon: Users, label: 'Driver Management', path: '/drivers' },
-    { icon: Users, label: 'Customer/Shipper', path: '/customers' },
-    { icon: CreditCard, label: 'Payments & Invoicing', path: '/payments' },
-    { icon: Star, label: 'Review Moderation', path: '/reviews' },
-    { icon: Settings, label: 'Settings', path: '/settings' },
-];
+const navItems = [
+  { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+  { to: '/users', icon: Users, label: 'Users' },
+  { to: '/drivers', icon: Truck, label: 'Drivers' },
+  { to: '/jobs', icon: Briefcase, label: 'Jobs' },
+  { to: '/truck-types', icon: TruckIcon, label: 'Truck Types' },
+  { to: '/withdrawals', icon: Wallet, label: 'Withdrawals' },
+  { to: '/cms', icon: FileText, label: 'CMS Pages' },
+]
 
-export default function Sidebar() {
-    const navigate = useNavigate();
-    const location = useLocation();
+export function Sidebar() {
+  const dispatch = useDispatch()
+  const navigate = useNavigate()
+  const user = useSelector((s: RootState) => s.auth.user)
 
-    return (
-        <aside className={`bg-white border-r border-gray-200 h-screen fixed left-0 top-0 transition-all duration-300 w-64'
-            }`}>
-            <div>
-                <img src={'/logo.png'} alt="JOBSITE" className=" w-30" />
-            </div>
+  const handleLogout = () => {
+    dispatch(logout())
+    void navigate('/login')
+  }
 
-            <nav>
-                {menuItems.map((item, index) => {
-                    const isActive = location.pathname === item.path ||
-                        (item.path === '/' && location.pathname === '/dashboard');
+  return (
+    <aside className="fixed inset-y-0 left-0 z-40 flex w-64 flex-col bg-slate-950">
+      <div className="flex h-16 items-center gap-3 px-6 border-b border-slate-800">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500">
+          <TruckIcon className="h-4 w-4 text-white" />
+        </div>
+        <div>
+          <span className="text-base font-bold text-white">JobsiteX</span>
+          <p className="text-[10px] text-slate-400 -mt-0.5 uppercase tracking-wider">Admin Console</p>
+        </div>
+      </div>
 
-                    return (
-                        <button
-                            key={index}
-                            onClick={() => navigate(item.path)}
-                            className={`flex w-full items-center px-6 py-3 text-gray-700 hover:bg-green-200 hover:text-black transition-colors ${isActive ? 'bg-green-500 text-white border-r-4 border-gray-700' : ''
-                                }`}
-                        >
-                            <item.icon size={20} />
-                            <span className={`ml-3`}>{item.label}</span>
-                        </button>
-                    )
-                })}
-            </nav>
+      <nav className="flex-1 overflow-y-auto py-4 px-3">
+        <p className="px-3 mb-2 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Navigation</p>
+        {navItems.map(({ to, icon: Icon, label }) => (
+          <NavLink
+            key={to}
+            to={to}
+            className={({ isActive }: { isActive: boolean }) =>
+              cn(
+                'group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all mb-0.5',
+                isActive
+                  ? 'bg-emerald-500 text-white shadow-sm'
+                  : 'text-slate-400 hover:bg-slate-800 hover:text-white',
+              )
+            }
+          >
+            {({ isActive }: { isActive: boolean }) => (
+              <>
+                <Icon className="h-4 w-4 shrink-0" />
+                <span className="flex-1">{label}</span>
+                {isActive && <ChevronRight className="h-3 w-3" />}
+              </>
+            )}
+          </NavLink>
+        ))}
+      </nav>
 
-            <div className="absolute bottom-0 w-full p-6 border-t border-gray-200">
-                <button className="flex items-center text-gray-700 hover:text-red-600 transition-colors">
-                    <LogOut size={20} />
-                    <span className={`ml-3 `}>Logout</span>
-                </button>
-            </div>
-        </aside>
-    );
+      <div className="border-t border-slate-800 p-3">
+        <div className="flex items-center gap-3 px-3 py-2">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 text-xs font-bold">
+            {user ? getInitials(user.fullName) : 'AD'}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-white truncate">{user?.fullName ?? 'Admin'}</p>
+            <p className="text-xs text-slate-400 truncate">{user?.email ?? ''}</p>
+          </div>
+        </div>
+        <button
+          onClick={handleLogout}
+          className="mt-1 flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-red-400 transition-colors"
+        >
+          <LogOut className="h-4 w-4" />
+          Sign out
+        </button>
+      </div>
+    </aside>
+  )
 }

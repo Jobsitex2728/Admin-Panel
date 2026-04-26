@@ -1,18 +1,17 @@
-import Sidebar from './Sidebar';
-import Header from './Header';
-import { Outlet } from 'react-router-dom';
+import { Outlet } from 'react-router'
+import { Sidebar } from './Sidebar'
+import { Header } from './Header'
 
-
-export default function MainLayout() {
+export function DashboardLayout() {
   return (
-    <div className="flex ">
+    <div className="min-h-screen bg-slate-50">
       <Sidebar />
-      <main className="flex-1 h-screen overflow-y-auto">
-       <Header/>
-        <div className=' ml-64'>
-          <Outlet/>
+      <Header />
+      <main className="ml-64 pt-16">
+        <div className="p-6">
+          <Outlet />
         </div>
       </main>
     </div>
-  );
+  )
 }

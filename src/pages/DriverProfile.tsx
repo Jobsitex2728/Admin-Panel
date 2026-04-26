@@ -1,294 +1,230 @@
-import { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { 
-  ArrowLeft, 
-  Mail, 
-  Phone, 
-  Star, 
-  Truck, 
-  MapPin, 
-  Clock, 
-  DollarSign,
-  Award,
-  FileText,
-  Shield
-} from 'lucide-react';
-import { useGetDriverProfileQuery } from '../redux/services/driverApi';
-import Avatar from '../components/shared/Avatar';
-import Button from '../components/shared/Button';
-import StatusBadge from '../components/shared/StatusBadge';
-import DriverProfileError from '../components/driverManagement/DriverProfileError';
-import DriverProfileSkeleton from '../components/driverManagement/DriverProfileSkeleton';
+import { useState } from 'react'
+import { useParams, useNavigate } from 'react-router'
+import { ArrowLeft, ExternalLink, FileText, CheckCircle, XCircle, AlertCircle } from 'lucide-react'
+import { useGetDriverQuery, useApproveDriverMutation, useReviewDocumentMutation } from '@/store/api/driversApi'
+import { useGetTruckTypesQuery } from '@/store/api/truckTypesApi'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { StatusBadge } from '@/components/shared/StatusBadge'
+import { formatCurrency, formatDate, getInitials } from '@/lib/utils'
+import type { ApproveDriverRequest, Document, DocumentType } from '@/types/driver'
+import { toast } from 'sonner'
 
+const DOC_LABELS: Record<DocumentType, string> = {
+  CDL_LICENSE: 'CDL License',
+  INSURANCE: 'Insurance',
+  DOT_NUMBER: 'DOT Certificate',
+  TRUCK_PHOTO: 'Truck Photo',
+}
 
-export default function DriverProfile() {
-  const { driverId } = useParams<{ driverId: string }>();
-  const navigate = useNavigate();
-  const [showAllReviews, setShowAllReviews] = useState(false);
+export default function DriverDetailPage() {
+  const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
+  const { data: driver, isLoading, isError } = useGetDriverQuery(id!)
+  const { data: truckTypes } = useGetTruckTypesQuery()
+  const [approveDriver, { isLoading: approving }] = useApproveDriverMutation()
+  const [reviewDocument, { isLoading: reviewing }] = useReviewDocumentMutation()
 
-  const { data: driver, isLoading, error, refetch } = useGetDriverProfileQuery(driverId || '');
+  const [form, setForm] = useState<Omit<ApproveDriverRequest, 'decision' | 'rejectionReason'>>({})
+  const [rejectionReason, setRejectionReason] = useState('')
+  const [decision, setDecision] = useState<'APPROVED' | 'REJECTED'>('APPROVED')
 
-  if (isLoading) return <DriverProfileSkeleton />;
-  if (error || !driver) return <DriverProfileError onRetry={refetch} />;
+  const setField = (key: keyof typeof form, value: string | number) =>
+    setForm(f => ({ ...f, [key]: value }))
 
-  const displayedReviews = showAllReviews 
-    ? driver.ratings.reviews 
-    : driver.ratings.reviews.slice(0, 2);
+  const handleApprove = async () => {
+    if (!id) return
+    try {
+      await approveDriver({ id, body: { decision, rejectionReason: decision === 'REJECTED' ? rejectionReason : undefined, ...form } }).unwrap()
+      toast.success(`Driver ${decision.toLowerCase()} successfully`)
+      navigate('/drivers')
+    } catch { toast.error('Failed to update driver status') }
+  }
+
+  const handleDocReview = async (docId: string, status: 'APPROVED' | 'REJECTED') => {
+    try {
+      await reviewDocument({ id: docId, status }).unwrap()
+      toast.success(`Document ${status.toLowerCase()}`)
+    } catch { toast.error('Failed to update document status') }
+  }
+
+  if (isLoading) return (
+    <div className="space-y-4">
+      <Skeleton className="h-8 w-40" />
+      <Skeleton className="h-48 w-full" />
+      <Skeleton className="h-48 w-full" />
+    </div>
+  )
+
+  if (isError || !driver) return (
+    <div className="rounded-lg border border-red-200 bg-red-50 p-4 flex items-center gap-3 text-red-700">
+      <AlertCircle className="h-5 w-5" />
+      <p className="text-sm">Failed to load driver profile.</p>
+    </div>
+  )
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
-      {/* Header with back button */}
-      <div className="mb-6 flex items-center gap-4">
-        <button
-          onClick={() => navigate('/drivers')}
-          className="p-2 hover:bg-gray-200 rounded-lg transition-colors"
-        >
-          <ArrowLeft size={20} />
-        </button>
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">All Driver / Driver Profile</h1>
-          <p className="text-sm text-gray-600 mt-1">View and manage driver details</p>
-        </div>
-      </div>
+    <div className="space-y-6 max-w-4xl">
+      <Button variant="ghost" className="gap-2 -ml-2" onClick={() => navigate('/drivers')}>
+        <ArrowLeft className="h-4 w-4" /> Back to Drivers
+      </Button>
 
-      <div className="grid grid-cols-3 gap-6">
-        {/* Left Column - Personal Info */}
-        <div className="space-y-6">
-          {/* Profile Card */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <div className="flex flex-col items-center text-center">
-              <Avatar src={driver.personalInfo.avatar} name={driver.personalInfo.name} size="lg" />
-              <h2 className="mt-4 text-xl font-semibold text-gray-900">{driver.personalInfo.name}</h2>
-              <p className="text-sm text-gray-500">
-                Joined {driver.personalInfo.joinedDate} • {driver.personalInfo.rating} 
-                <Star className="inline w-4 h-4 text-yellow-400 ml-1" fill="currentColor" />
-              </p>
-            </div>
-
-            <div className="mt-6 space-y-3">
-              <div className="flex items-center gap-3 text-sm">
-                <Mail className="w-4 h-4 text-gray-400" />
-                <span className="text-gray-600">{driver.personalInfo.email}</span>
+      {/* Driver header */}
+      <Card>
+        <CardContent className="p-6">
+          <div className="flex items-start gap-4">
+            <Avatar className="h-16 w-16">
+              <AvatarImage src={driver.user.avatar} />
+              <AvatarFallback className="text-lg">{getInitials(driver.user.fullName)}</AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-3 flex-wrap">
+                <h2 className="text-xl font-bold text-slate-900">{driver.user.fullName}</h2>
+                <StatusBadge status={driver.driverStatus} type="driver" />
+                {driver.isAvailable && <StatusBadge status="ACTIVE" type="user" />}
               </div>
-              <div className="flex items-center gap-3 text-sm">
-                <Phone className="w-4 h-4 text-gray-400" />
-                <span className="text-gray-600">{driver.personalInfo.phoneNumber}</span>
-              </div>
-              {driver.personalInfo.address && (
-                <div className="flex items-start gap-3 text-sm">
-                  <MapPin className="w-4 h-4 text-gray-400 mt-0.5" />
-                  <span className="text-gray-600">
-                    {driver.personalInfo.address.street}, {driver.personalInfo.address.city}, {' '}
-                    {driver.personalInfo.address.state} {driver.personalInfo.address.zipCode}
-                  </span>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Admin Controls */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Admin Controls</h3>
-            <div className="space-y-3">
-              {driver.adminControls?.canSuspend && (
-                <Button variant="danger" className="w-full justify-center">
-                  <Shield className="w-4 h-4 mr-2" />
-                  Suspend
-                </Button>
-              )}
-              {driver.adminControls?.canViewDocuments && (
-                <Button 
-                  variant="outline" 
-                  className="w-full justify-center"
-                  onClick={() => navigate(`/drivers/${driverId}/documents`)}
-                >
-                  <FileText className="w-4 h-4 mr-2" />
-                  View Documents
-                </Button>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Middle Column - Stats & Job History */}
-        <div className="col-span-2 space-y-6">
-          {/* Stats Cards */}
-          <div className="grid grid-cols-4 gap-4">
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-500">Total Distance</p>
-                  <p className="text-xl font-semibold text-gray-900">{driver.stats.totalDistance} mi</p>
-                </div>
-                <Truck className="w-8 h-8 text-blue-500 bg-blue-100 p-1.5 rounded-lg" />
-              </div>
-            </div>
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-500">Jobs Completed</p>
-                  <p className="text-xl font-semibold text-gray-900">{driver.stats.jobsCompleted}</p>
-                </div>
-                <Award className="w-8 h-8 text-green-500 bg-green-100 p-1.5 rounded-lg" />
-              </div>
-            </div>
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-500">EST. Duration</p>
-                  <p className="text-xl font-semibold text-gray-900">{driver.stats.estimatedDuration} hrs</p>
-                </div>
-                <Clock className="w-8 h-8 text-purple-500 bg-purple-100 p-1.5 rounded-lg" />
-              </div>
-            </div>
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-500">Total Earnings</p>
-                  <p className="text-xl font-semibold text-gray-900">${driver.stats.totalEarnings}</p>
-                </div>
-                <DollarSign className="w-8 h-8 text-yellow-500 bg-yellow-100 p-1.5 rounded-lg" />
+              <p className="text-slate-500 text-sm mt-1">{driver.user.email}</p>
+              <div className="flex flex-wrap gap-4 mt-3 text-sm text-slate-600">
+                <span>Joined {formatDate(driver.user.createdAt)}</span>
+                <span>{driver._count.jobs} jobs</span>
+                <span>Balance: {formatCurrency(driver.currentBalance)}</span>
+                <span>Total earned: {formatCurrency(driver.totalEarnings)}</span>
               </div>
             </div>
           </div>
+        </CardContent>
+      </Card>
 
-          {/* Assigned Vehicle */}
-          {driver.assignedVehicle && (
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Assigned Vehicle</h3>
-              <div className="flex gap-6">
-                <div className="w-48 h-32 bg-gray-200 rounded-lg flex items-center justify-center">
-                  {driver.assignedVehicle.images[0]?.url ? (
-                    <img 
-                      src={driver.assignedVehicle.images[0].url} 
-                      alt={driver.assignedVehicle.model}
-                      className="w-full h-full object-cover rounded-lg"
-                    />
-                  ) : (
-                    <Truck className="w-12 h-12 text-gray-400" />
+      {/* Documents */}
+      <Card>
+        <CardHeader><CardTitle>Documents</CardTitle></CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {driver.documents.map((doc: Document) => (
+              <div key={doc.id} className="flex items-center gap-3 rounded-lg border border-slate-200 p-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-50">
+                  <FileText className="h-4 w-4 text-slate-400" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-slate-900">{DOC_LABELS[doc.type]}</p>
+                  <StatusBadge status={doc.status} type="document" />
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer">
+                    <Button variant="ghost" size="icon" className="h-7 w-7">
+                      <ExternalLink className="h-3.5 w-3.5" />
+                    </Button>
+                  </a>
+                  {doc.status === 'PENDING' && (
+                    <>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50" onClick={() => handleDocReview(doc.id, 'APPROVED')} disabled={reviewing}>
+                        <CheckCircle className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-50" onClick={() => handleDocReview(doc.id, 'REJECTED')} disabled={reviewing}>
+                        <XCircle className="h-3.5 w-3.5" />
+                      </Button>
+                    </>
                   )}
                 </div>
-                <div className="flex-1">
-                  <h4 className="font-medium text-gray-900">{driver.assignedVehicle.model}</h4>
-                  <p className="text-sm text-gray-500 mt-1">{driver.assignedVehicle.type}</p>
-                  <div className="grid grid-cols-2 gap-4 mt-3">
-                    <div>
-                      <p className="text-xs text-gray-500">Truck type</p>
-                      <p className="text-sm font-medium">{driver.assignedVehicle.specifications.truckType}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-500">Payload Capacity</p>
-                      <p className="text-sm font-medium">{driver.assignedVehicle.specifications.payloadCapacity}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-500">Axle Count</p>
-                      <p className="text-sm font-medium">{driver.assignedVehicle.specifications.axleCount}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-500">Hourly Rate</p>
-                      <p className="text-sm font-medium">${driver.assignedVehicle.specifications.hourlyRate}</p>
-                    </div>
-                  </div>
-                </div>
               </div>
-            </div>
-          )}
-
-          {/* Job History */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Job History</h3>
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead>
-                  <tr>
-                    <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider pb-3">Job ID</th>
-                    <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider pb-3">Date</th>
-                    <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider pb-3">Route</th>
-                    <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider pb-3">Amount</th>
-                    <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider pb-3">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {driver.jobHistory.map((job) => (
-                    <tr key={job.jobId}>
-                      <td className="py-3 text-sm font-medium text-gray-900">{job.jobId}</td>
-                      <td className="py-3 text-sm text-gray-600">{job.date}</td>
-                      <td className="py-3 text-sm text-gray-600">{job.route.from} → {job.route.to}</td>
-                      <td className="py-3 text-sm text-gray-900">${job.amount}</td>
-                      <td className="py-3">
-                        <StatusBadge status={job.status} />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-
-        {/* Right Column - Ratings */}
-        <div className="space-y-6">
-          {/* Ratings Summary */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Ratings & Reviews</h3>
-              <div className="flex items-center gap-1">
-                <span className="text-2xl font-bold text-gray-900">{driver.ratings.average}</span>
-                <div className="flex">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <Star
-                      key={star}
-                      className={`w-4 h-4 ${
-                        star <= Math.round(driver.ratings.average)
-                          ? 'text-yellow-400'
-                          : 'text-gray-300'
-                      }`}
-                      fill="currentColor"
-                    />
-                  ))}
-                </div>
-              </div>
-            </div>
-            <p className="text-sm text-gray-500 mb-4">{driver.ratings.totalCount} reviews</p>
-
-            {/* Reviews List */}
-            <div className="space-y-4">
-              {displayedReviews.map((review) => (
-                <div key={review.id} className="border-b border-gray-100 last:border-0 pb-4 last:pb-0">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <Avatar src={review.reviewerAvatar} name={review.reviewerName} size="sm" />
-                      <span className="font-medium text-gray-900">{review.reviewerName}</span>
-                    </div>
-                    <div className="flex">
-                      {[1, 2, 3, 4, 5].map((star) => (
-                        <Star
-                          key={star}
-                          className={`w-3 h-3 ${
-                            star <= review.rating ? 'text-yellow-400' : 'text-gray-300'
-                          }`}
-                          fill="currentColor"
-                        />
-                      ))}
-                    </div>
-                  </div>
-                  <p className="text-sm text-gray-600 line-clamp-2">{review.content}</p>
-                  <p className="text-xs text-gray-400 mt-1">{review.date}</p>
-                </div>
-              ))}
-            </div>
-
-            {driver.ratings.reviews.length > 2 && (
-              <button
-                onClick={() => setShowAllReviews(!showAllReviews)}
-                className="mt-4 text-sm text-blue-600 hover:text-blue-800 font-medium"
-              >
-                {showAllReviews ? 'Show Less' : 'View All Reviews'}
-              </button>
+            ))}
+            {driver.documents.length === 0 && (
+              <p className="text-sm text-slate-400 col-span-2">No documents uploaded yet.</p>
             )}
           </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
+
+      {/* Approval form */}
+      {driver.driverStatus === 'PENDING' && (
+        <Card>
+          <CardHeader><CardTitle>Review & Approve Driver</CardTitle></CardHeader>
+          <CardContent className="space-y-5">
+            <p className="text-sm text-slate-500">Fill in the details from reviewing the driver's documents, then make your decision.</p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>Truck Type</Label>
+                <Select value={form.truckTypeId ?? ''} onValueChange={v => setField('truckTypeId', v)}>
+                  <SelectTrigger><SelectValue placeholder="Select truck type" /></SelectTrigger>
+                  <SelectContent>
+                    {truckTypes?.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Number Plate</Label>
+                <Input placeholder="e.g. ABC-1234" value={form.numberPlate ?? ''} onChange={e => setField('numberPlate', e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Truck Model</Label>
+                <Input placeholder="e.g. Freightliner Cascadia" value={form.truckModel ?? ''} onChange={e => setField('truckModel', e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Truck Weight (lbs)</Label>
+                <Input type="number" placeholder="e.g. 30000" value={form.truckWeight ?? ''} onChange={e => setField('truckWeight', Number(e.target.value))} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Trailer Type</Label>
+                <Input placeholder="e.g. Flatbed" value={form.trailerType ?? ''} onChange={e => setField('trailerType', e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Hourly Rate ($)</Label>
+                <Input type="number" placeholder="e.g. 75" value={form.hourlyRate ?? ''} onChange={e => setField('hourlyRate', Number(e.target.value))} />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Decision</Label>
+              <Select value={decision} onValueChange={v => setDecision(v as typeof decision)}>
+                <SelectTrigger className="w-48">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="APPROVED">Approve</SelectItem>
+                  <SelectItem value="REJECTED">Reject</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {decision === 'REJECTED' && (
+              <div className="space-y-1.5">
+                <Label>Rejection Reason</Label>
+                <Textarea placeholder="Explain why the profile is being rejected…" value={rejectionReason} onChange={e => setRejectionReason(e.target.value)} />
+              </div>
+            )}
+
+            <div className="flex gap-3 pt-2">
+              <Button
+                variant={decision === 'APPROVED' ? 'success' : 'destructive'}
+                loading={approving}
+                onClick={handleApprove}
+              >
+                {decision === 'APPROVED' ? 'Approve Driver' : 'Reject Driver'}
+              </Button>
+              <Button variant="outline" onClick={() => navigate('/drivers')}>Cancel</Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Already reviewed */}
+      {driver.driverStatus !== 'PENDING' && (
+        <Card>
+          <CardContent className="p-4 flex items-center gap-3 text-sm text-slate-600">
+            {driver.driverStatus === 'APPROVED'
+              ? <CheckCircle className="h-4 w-4 text-emerald-500" />
+              : <XCircle className="h-4 w-4 text-red-500" />}
+            This driver has been <strong>{driver.driverStatus.toLowerCase()}</strong>.
+          </CardContent>
+        </Card>
+      )}
     </div>
-  );
+  )
 }
