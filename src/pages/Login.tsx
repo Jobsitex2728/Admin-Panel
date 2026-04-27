@@ -69,10 +69,6 @@ export default function LoginPage() {
         {/* Center content */}
         <div className="relative space-y-6">
           <div className="space-y-3">
-            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-              <span className="text-xs text-emerald-400 font-medium">Admin Dashboard</span>
-            </div>
             <h2 className="text-4xl font-bold text-white leading-tight">
               Manage your<br />
               <span className="text-emerald-400">trucking platform</span>
@@ -89,16 +85,16 @@ export default function LoginPage() {
               { label: 'Payments', desc: 'Track revenue' },
               { label: 'Users', desc: 'Block & manage' },
             ].map(({ label, desc }) => (
-              <div key={label} className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+              <div key={label} className="rounded-xl border border-slate-500 bg-slate-600/60 p-4">
                 <p className="text-sm font-semibold text-white">{label}</p>
-                <p className="text-xs text-slate-500 mt-0.5">{desc}</p>
+                <p className="text-xs text-slate-400 mt-0.5">{desc}</p>
               </div>
             ))}
           </div>
         </div>
 
         {/* Footer */}
-        <p className="relative text-xs text-slate-600">
+        <p className="relative text-xs text-slate-400">
           JobsiteX © {new Date().getFullYear()} — Secure Admin Access
         </p>
       </div>
