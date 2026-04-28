@@ -2,7 +2,7 @@ import { createApi, fetchBaseQuery, type BaseQueryFn, type FetchArgs, type Fetch
 import type { RootState } from '@/store'
 import { logout, setTokens } from '@/store/authSlice'
 
-const BASE_URL = import.meta.env.VITE_API_URL ?? 'https://localhost:3000/api/v1'
+const BASE_URL = import.meta.env.VITE_API_URL ?? 'https://api.jobsitex.co/api/v1'
 
 const rawBase = fetchBaseQuery({
   baseUrl: BASE_URL,
