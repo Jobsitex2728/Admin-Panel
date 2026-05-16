@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router'
 import { ArrowLeft, ExternalLink, FileText, CheckCircle, XCircle, AlertCircle } from 'lucide-react'
 import { useGetDriverQuery, useApproveDriverMutation, useReviewDocumentMutation } from '@/store/api/driversApi'
@@ -34,6 +34,19 @@ export default function DriverDetailPage() {
   const [form, setForm] = useState<Omit<ApproveDriverRequest, 'decision' | 'rejectionReason'>>({})
   const [rejectionReason, setRejectionReason] = useState('')
   const [decision, setDecision] = useState<'APPROVED' | 'REJECTED'>('APPROVED')
+
+  useEffect(() => {
+    if (driver) {
+      setForm({
+        truckTypeId: driver.truckTypeId ?? undefined,
+        numberPlate: driver.numberPlate ?? undefined,
+        truckModel: driver.truckModel ?? undefined,
+        truckWeight: driver.truckWeight ?? undefined,
+        trailerType: driver.trailerType ?? undefined,
+        hourlyRate: driver.hourlyRate ?? undefined,
+      })
+    }
+  }, [driver])
 
   const setField = (key: keyof typeof form, value: string | number) =>
     setForm(f => ({ ...f, [key]: value }))
