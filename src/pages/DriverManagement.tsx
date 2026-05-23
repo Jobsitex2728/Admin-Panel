@@ -23,6 +23,8 @@ export default function DriversPage() {
   const statusFilter: DriverStatus | undefined = tab === 'pending' ? 'PENDING' : undefined
 
   const { data, isLoading } = useGetDriversQuery({ page, limit: 10, status: statusFilter })
+  // Separate lightweight query to always show accurate pending count in the tab badge
+  const { data: pendingCountData } = useGetDriversQuery({ page: 1, limit: 1, status: 'PENDING' as DriverStatus })
 
   const filtered = data?.drivers.filter((d: DriverListItem) =>
     !search ||
@@ -40,9 +42,9 @@ export default function DriversPage() {
             <TabsTrigger value="all">All Drivers</TabsTrigger>
             <TabsTrigger value="pending">
               Pending Approval
-              {tab !== 'pending' && data && (
+              {pendingCountData && pendingCountData.total > 0 && (
                 <span className="ml-1.5 rounded-full bg-amber-100 text-amber-700 text-xs px-1.5 py-0.5">
-                  {data.total}
+                  {pendingCountData.total}
                 </span>
               )}
             </TabsTrigger>

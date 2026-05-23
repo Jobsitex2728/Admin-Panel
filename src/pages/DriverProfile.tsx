@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router'
 import { ArrowLeft, ExternalLink, FileText, CheckCircle, XCircle, AlertCircle } from 'lucide-react'
-import { useGetDriverQuery, useApproveDriverMutation, useReviewDocumentMutation } from '@/store/api/driversApi'
+import { useGetDriverQuery, useApproveDriverMutation } from '@/store/api/driversApi'
 import { useGetTruckTypesQuery } from '@/store/api/truckTypesApi'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -29,7 +29,6 @@ export default function DriverDetailPage() {
   const { data: driver, isLoading, isError } = useGetDriverQuery(id!)
   const { data: truckTypes } = useGetTruckTypesQuery()
   const [approveDriver, { isLoading: approving }] = useApproveDriverMutation()
-  const [reviewDocument, { isLoading: reviewing }] = useReviewDocumentMutation()
 
   const [form, setForm] = useState<Omit<ApproveDriverRequest, 'decision' | 'rejectionReason'>>({})
   const [rejectionReason, setRejectionReason] = useState('')
@@ -58,13 +57,6 @@ export default function DriverDetailPage() {
       toast.success(`Driver ${decision.toLowerCase()} successfully`)
       navigate('/drivers')
     } catch { toast.error('Failed to update driver status') }
-  }
-
-  const handleDocReview = async (docId: string, status: 'APPROVED' | 'REJECTED') => {
-    try {
-      await reviewDocument({ id: docId, status }).unwrap()
-      toast.success(`Document ${status.toLowerCase()}`)
-    } catch { toast.error('Failed to update document status') }
   }
 
   if (isLoading) return (
@@ -116,7 +108,12 @@ export default function DriverDetailPage() {
 
       {/* Documents */}
       <Card>
-        <CardHeader><CardTitle>Documents</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle>Documents</CardTitle>
+          {driver.driverStatus === 'PENDING' && (
+            <p className="text-xs text-slate-400 mt-0.5">Review each document below, then approve or reject the driver using the form below.</p>
+          )}
+        </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {driver.documents.map((doc: Document) => (
@@ -128,23 +125,11 @@ export default function DriverDetailPage() {
                   <p className="text-sm font-medium text-slate-900">{DOC_LABELS[doc.type]}</p>
                   <StatusBadge status={doc.status} type="document" />
                 </div>
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer">
-                    <Button variant="ghost" size="icon" className="h-7 w-7">
-                      <ExternalLink className="h-3.5 w-3.5" />
-                    </Button>
-                  </a>
-                  {doc.status === 'PENDING' && (
-                    <>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50" onClick={() => handleDocReview(doc.id, 'APPROVED')} disabled={reviewing}>
-                        <CheckCircle className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-50" onClick={() => handleDocReview(doc.id, 'REJECTED')} disabled={reviewing}>
-                        <XCircle className="h-3.5 w-3.5" />
-                      </Button>
-                    </>
-                  )}
-                </div>
+                <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer">
+                  <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0">
+                    <ExternalLink className="h-3.5 w-3.5" />
+                  </Button>
+                </a>
               </div>
             ))}
             {driver.documents.length === 0 && (
@@ -159,7 +144,10 @@ export default function DriverDetailPage() {
         <Card>
           <CardHeader><CardTitle>Review & Approve Driver</CardTitle></CardHeader>
           <CardContent className="space-y-5">
-            <p className="text-sm text-slate-500">Fill in the details from reviewing the driver's documents, then make your decision.</p>
+            <p className="text-sm text-slate-500">
+              Fill in the details from reviewing the driver's documents, then approve or reject.
+              All pending documents will be automatically updated to match your decision.
+            </p>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">

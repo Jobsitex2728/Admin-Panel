@@ -1,6 +1,10 @@
 import { useState } from 'react'
-import { Wallet } from 'lucide-react'
-import { useGetPendingWithdrawalsQuery, useProcessWithdrawalMutation } from '@/store/api/withdrawalsApi'
+import { Wallet, XCircle } from 'lucide-react'
+import {
+  useGetPendingWithdrawalsQuery,
+  useProcessWithdrawalMutation,
+  useRejectWithdrawalMutation,
+} from '@/store/api/withdrawalsApi'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -11,18 +15,29 @@ import { formatCurrency, formatDate, getInitials } from '@/lib/utils'
 import type { Withdrawal } from '@/types/withdrawal'
 import { toast } from 'sonner'
 
+type ActionKind = 'process' | 'reject'
+
 export default function WithdrawalsPage() {
   const { data: withdrawals, isLoading } = useGetPendingWithdrawalsQuery()
   const [processWithdrawal, { isLoading: processing }] = useProcessWithdrawalMutation()
-  const [target, setTarget] = useState<Withdrawal | null>(null)
+  const [rejectWithdrawal, { isLoading: rejecting }] = useRejectWithdrawalMutation()
+  const [action, setAction] = useState<{ kind: ActionKind; withdrawal: Withdrawal } | null>(null)
 
-  const handleProcess = async () => {
-    if (!target) return
+  const handleConfirm = async () => {
+    if (!action) return
     try {
-      await processWithdrawal(target.id).unwrap()
-      toast.success('Withdrawal processed')
-      setTarget(null)
-    } catch { toast.error('Failed to process withdrawal') }
+      if (action.kind === 'process') {
+        await processWithdrawal(action.withdrawal.id).unwrap()
+        toast.success('Withdrawal processed successfully')
+      } else {
+        await rejectWithdrawal(action.withdrawal.id).unwrap()
+        toast.success('Withdrawal rejected — balance restored to driver')
+      }
+      setAction(null)
+    } catch (err: unknown) {
+      const msg = (err as { data?: { message?: string } })?.data?.message
+      toast.error(msg ?? (action.kind === 'process' ? 'Failed to process withdrawal' : 'Failed to reject withdrawal'))
+    }
   }
 
   return (
@@ -37,7 +52,7 @@ export default function WithdrawalsPage() {
                 <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Driver</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Amount</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide hidden md:table-cell">Requested</th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-slate-500 uppercase tracking-wide">Action</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-slate-500 uppercase tracking-wide">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
@@ -65,7 +80,20 @@ export default function WithdrawalsPage() {
                         <span className="text-sm text-slate-500">{formatDate(w.createdAt)}</span>
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <Button size="sm" onClick={() => setTarget(w)}>Process</Button>
+                        <div className="flex items-center justify-end gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
+                            onClick={() => setAction({ kind: 'reject', withdrawal: w })}
+                          >
+                            <XCircle className="h-3.5 w-3.5 mr-1" />
+                            Reject
+                          </Button>
+                          <Button size="sm" onClick={() => setAction({ kind: 'process', withdrawal: w })}>
+                            Process
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -81,14 +109,18 @@ export default function WithdrawalsPage() {
       </Card>
 
       <ConfirmDialog
-        open={!!target}
-        onOpenChange={o => { if (!o) setTarget(null) }}
-        title="Process withdrawal?"
-        description={`Transfer ${target ? formatCurrency(target.amount) : ''} to ${target?.driverProfile.user.fullName}. This action cannot be undone.`}
-        confirmLabel="Process"
-        variant="default"
-        loading={processing}
-        onConfirm={handleProcess}
+        open={!!action}
+        onOpenChange={o => { if (!o) setAction(null) }}
+        title={action?.kind === 'process' ? 'Process withdrawal?' : 'Reject withdrawal?'}
+        description={
+          action?.kind === 'process'
+            ? `Transfer ${action ? formatCurrency(action.withdrawal.amount) : ''} to ${action?.withdrawal.driverProfile.user.fullName} via Stripe. This cannot be undone.`
+            : `Reject this withdrawal and restore ${action ? formatCurrency(action.withdrawal.amount) : ''} to ${action?.withdrawal.driverProfile.user.fullName}'s balance.`
+        }
+        confirmLabel={action?.kind === 'process' ? 'Process' : 'Reject'}
+        variant={action?.kind === 'reject' ? 'destructive' : 'default'}
+        loading={processing || rejecting}
+        onConfirm={handleConfirm}
       />
     </div>
   )

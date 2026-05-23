@@ -11,7 +11,15 @@ export const withdrawalsApi = baseApi.injectEndpoints({
       query: (id) => ({ url: `/admin/withdrawals/${id}/process`, method: 'POST' }),
       invalidatesTags: ['Withdrawals', 'Dashboard'],
     }),
+    rejectWithdrawal: build.mutation<void, string>({
+      query: (id) => ({ url: `/admin/withdrawals/${id}/reject`, method: 'POST' }),
+      invalidatesTags: ['Withdrawals', 'Dashboard'],
+    }),
   }),
 })
 
-export const { useGetPendingWithdrawalsQuery, useProcessWithdrawalMutation } = withdrawalsApi
+export const {
+  useGetPendingWithdrawalsQuery,
+  useProcessWithdrawalMutation,
+  useRejectWithdrawalMutation,
+} = withdrawalsApi
